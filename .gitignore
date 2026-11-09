@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# real runtime config / logs must never be committed
+policy-sys.txt
+policy.log

@@ -1,0 +1,48 @@
+{
+  "name": "dsh-policy",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "In-stream refusal detection and auto-retry for DeepSeek Harness: peek at the opening chunks, drop refused attempts and re-issue silently, so streaming output stays intact.",
+  "license": "MIT",
+  "author": "hbx111",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hbx111/dsh-policy.git"
+  },
+  "homepage": "https://github.com/hbx111/dsh-policy#readme",
+  "bugs": {
+    "url": "https://github.com/hbx111/dsh-policy/issues"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "package.json",
+    "locale"
+  ],
+  "scripts": {
+    "test": "node test-retry.mjs"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "llm-stream",
+    "retry",
+    "refusal-detection"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0-rc.1",
+    "node": ">=18"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mode": "off",
+  "onlyAgentLoop": true,
+  "log": true,
+  "retry": {
+    "enabled": true,
+    "maxRetries": 2,
+    "peekChars": 200,
+    "peekMs": 1200,
+    "minTextChars": 24,
+    "textStallMs": 1500,
+    "maxWaitMs": 10000,
+    "backoffMs": 350
+  }
+}
