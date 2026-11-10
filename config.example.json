@@ -9,7 +9,8 @@
     "peekMs": 1200,
     "minTextChars": 24,
     "textStallMs": 1500,
-    "maxWaitMs": 10000,
-    "backoffMs": 350
+    "maxWaitMs": 30000,
+    "backoffMs": 350,
+    "reasoningStallMs": 4000
   }
 }

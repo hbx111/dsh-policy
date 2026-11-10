@@ -67,7 +67,8 @@ Files are read from `~/.dsh/policy/`:
     "peekMs": 1200,
     "minTextChars": 24,
     "textStallMs": 1500,
-    "maxWaitMs": 10000,
+    "maxWaitMs": 30000,
+    "reasoningStallMs": 4000,
     "backoffMs": 350
   }
 }
@@ -84,7 +85,8 @@ Files are read from `~/.dsh/policy/`:
 | `retry.peekMs` | `1200` | Max wait for the first characters. |
 | `retry.minTextChars` | `24` | Below this, keep waiting (a two-character answer is not a signal). |
 | `retry.textStallMs` | `1500` | If text stops growing for this long, give up waiting and pass through. |
-| `retry.maxWaitMs` | `10000` | Hard cap on the peek window. |
+| `retry.maxWaitMs` | `30000` | How long text may stay empty before giving up — **and only if reasoning has also stalled** (see next row). |
+| `retry.reasoningStallMs` | `4000` | Reasoning must be idle this long, in addition to `maxWaitMs` expiring, before the peek gives up. A long chain-of-thought that's still streaming means the model is working, not stuck. |
 | `retry.backoffMs` | `350` | Delay before re-issuing. |
 
 The plugin re-reads `config.json` when its mtime changes, so switches take effect without a restart. **Changing `index.js` itself does require restarting dsh.**
@@ -145,6 +147,20 @@ The negative set is the part that keeps the detector honest. Examples it must no
 | `抱歉，我无法写得更长。` | `(?!得)` guard |
 | `This is beyond the current scope of the project.` | only `beyond my …` / `beyond the scope` counts |
 | `这个函数我不写注释，直接用默认参数。` | `这个` requires a refusal verb, not a bare `不写` |
+
+## Large-context models (1M)
+
+Long prompts make the model think longer before it writes anything. That broke the original timing rule: `maxWaitMs` alone expired mid-reasoning, so the peek gave up without ever judging. In one real installation `wait-reasoning` fired **89 times** — 89 chances to miss a refusal entirely.
+
+The rule now needs two conditions: `maxWaitMs` expired **and** reasoning idle for `reasoningStallMs`. A chain-of-thought that keeps streaming keeps the peek open, because the model is working, not stuck.
+
+If most of your traffic runs at 1M context:
+
+```json
+{ "retry": { "maxWaitMs": 45000, "reasoningStallMs": 4000 } }
+```
+
+**Cost note**: a retry re-sends the entire prompt. At 1M context that's another ~1M input tokens per retry, so keep `maxRetries` at 1–2 if you pay per token. The plugin does not deduplicate prompt caching — it relies on the upstream's own prompt cache.
 
 ## Extending the corpus
 

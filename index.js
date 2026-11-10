@@ -48,8 +48,12 @@ const DEFAULT_CONFIG = {
     minTextChars: 24,
     /** 正文刚起头就断流超过这么久，才认输放行 */
     textStallMs: 1500,
-    /** 正文迟迟不出现时的总等待上限：模型可能先推理很久再开口 */
-    maxWaitMs: 10000,
+    /** 正文迟迟不出现时的总等待上限：模型可能先推理很久再开口。
+     *  1M 上下文下推理动辄 5000+ 字、几十秒，10s 会把这类请求直接放走
+     *  （旧值让 policy.log 里出现 89 次 wait-reasoning，即 89 次没判定就放行）。 */
+    maxWaitMs: 30000,
+    /** 推理停住这么久、且已超过 maxWaitMs，才认输放行；推理还在滚就继续等 */
+    reasoningStallMs: 4000,
     /** 重发前的退避，毫秒 */
     backoffMs: 350,
   },
@@ -522,7 +526,8 @@ export async function* guardedStream(next, options, cfg) {
   const max = Math.max(0, Number(retry.maxRetries) || 0);
   const peekChars = Math.max(24, Number(retry.peekChars) || 200);
   const peekMs = Math.max(200, Number(retry.peekMs) || 1200);
-  const maxWaitMs = Math.max(1000, Number(retry.maxWaitMs) || 10000);
+  const maxWaitMs = Math.max(1000, Number(retry.maxWaitMs) || 30000);
+  const reasoningStallMs = Math.max(500, Number(retry.reasoningStallMs) || 4000);
   const backoffMs = Math.max(0, Number(retry.backoffMs) || 0);
   /** 正文起头后至少要看够这么多字才允许下结论（「这个忙不能帮」才 7 个字节） */
   const minText = Math.max(8, Number(retry.minTextChars) || 24);
@@ -540,6 +545,7 @@ export async function* guardedStream(next, options, cfg) {
     let chunks = 0;
     let firstAt = 0;
     let lastTextAt = 0;
+    let lastReasoningAt = 0;
     let decided = false;
     let refused = false;
     let leaked = false;
@@ -600,6 +606,7 @@ export async function* guardedStream(next, options, cfg) {
             // 推理不是正文：模型完全可能先想几千字再拒绝，这里不拿它当放行条件，
             // 只累计长度用于日志。真正的等待上限是下面的 maxWaitMs。
             reasoningChars += (chunk.text || '').length;
+            lastReasoningAt = Date.now();
           } else if (chunk && chunk.type === 'block-start' && chunk.blockType !== 'text' && chunk.blockType !== 'reasoning') {
             decided = true;
             why = 'tool-block';
@@ -608,7 +615,11 @@ export async function* guardedStream(next, options, cfg) {
             const waited = Date.now() - firstAt;
             if (text.length === 0) {
               // 正文还没出现：给推理链 maxWaitMs。它再长也不构成放行理由。
-              if (waited > maxWaitMs) {
+              // 但只等时间会误放：1M 上下文下推理本来就长，所以要求
+              // 「已超过 maxWaitMs」且「推理已经停住 reasoningStallMs」两条同时成立。
+              // 推理还在往下滚就继续等，说明模型在工作，不是卡死。
+              const idle = Date.now() - (lastReasoningAt || firstAt);
+              if (waited > maxWaitMs && idle > reasoningStallMs) {
                 decided = true;
                 why = 'wait-reasoning';
               }
