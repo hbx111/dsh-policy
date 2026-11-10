@@ -146,6 +146,23 @@ The negative set is the part that keeps the detector honest. Examples it must no
 | `This is beyond the current scope of the project.` | only `beyond my …` / `beyond the scope` counts |
 | `这个函数我不写注释，直接用默认参数。` | `这个` requires a refusal verb, not a bare `不写` |
 
+## Extending the corpus
+
+`tools/probe-refusals.py` runs 20 refusal-inducing probes against any OpenAI-compatible endpoint and dumps the answer openings:
+
+```bash
+export WB2API_BASE=http://127.0.0.1:7863
+export WB2API_KEY=sk-...
+python3 tools/probe-refusals.py --model cn:deepseek-v4.1-flash
+```
+
+Read `refusal-samples.json`, find openings the matcher misses, add them to `REFUSAL_OPEN`, and record them in `refusal-corpus.mjs` so they never regress.
+
+Two practical notes:
+
+- **Reasoning models**: keep `--max-tokens` at 1000+. Too small and the reasoning pass eats the whole budget, producing empty content that looks like a refusal but is just truncation.
+- **Aim at the assistant's own wording, not the topic.** The value of the probe is the sentence shape (`我不会给你方法`), not which subjects get refused.
+
 ## Limitations
 
 - Retry is a **statistical** fix. If the model refuses every time for a given input, retrying twice just costs tokens; the last attempt is returned unchanged.
