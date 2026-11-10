@@ -25,6 +25,7 @@ proxy:   full response buffered  →  judge at the end    →  no streaming at a
 - **Tool-call aware**: if the first block is a tool call, it's not a refusal; no retry.
 - **Upstream filter aware**: `content_filter` / `guardrail_intervened` / `risk control` terminations are treated as terminal. Retrying those just gets cut again and burns tokens, so the plugin stops and annotates the failure instead.
 - **Bilingual refusal patterns**: matches `Sorry, I can't…`, `抱歉，我不能提供…`, `我无法写这类…`, and Chinese *post-posed* negation such as `继母与继子这类家庭亲属关系的性内容我不写`.
+- **Tuned against real DeepSeek-V4.1 output**: 20 probe prompts were run against `deepseek-v4.1-flash` (with a policy block attached) to capture refusals that survive prompt-level persuasion. V4.1 refuses in very short, concrete sentences — `这个我不能写。` / `我不会给你方法。` / `我不能提供甲基苯丙胺的合成步骤…` — which generic refusal lists miss because they expect a demonstrative (`这类` / `这个`) after the verb.
 - **Guarded against false positives**: technical phrasing like `这个函数我不写注释` or `这个类的构造器不能写 const` does not trigger a retry.
 - **Zero dependencies**: Node built-ins only.
 
@@ -104,10 +105,12 @@ Patterns are deliberately narrow: `(?=$|[。！？!?，,、；;—…])`-style e
 ## Tests
 
 ```bash
-node test-retry.mjs
+npm test          # runs both suites
+node test-retry.mjs        # 16 cases — stream/retry behaviour
+node refusal-corpus.mjs    # 47 cases — detection coverage & false positives
 ```
 
-16 cases, no network, no dsh process needed — every case drives a fake chunk stream through the real listener:
+`test-retry.mjs` needs no network and no dsh process — every case drives a fake chunk stream through the real listener:
 
 ```
 PASS 判定：开口就拒的形状命中
@@ -121,6 +124,27 @@ PASS 上游 content_filter 切断 → 不重试，失败信息带注
 ...
 16 项通过
 ```
+
+`refusal-corpus.mjs` is a corpus test built from **collected DeepSeek-V4.1 output**:
+
+- 22 positive cases — real V4.1 refusals (13 from the probe run + 9 regression cases)
+- 5 "complied" cases — same probe run, but the model actually answered; must not be flagged
+- 20 negative cases — technical sentences and normal openers that must not be flagged
+
+```
+47/47 通过，失败 0 项
+```
+
+The negative set is the part that keeps the detector honest. Examples it must not flag:
+
+| Text | Why |
+| --- | --- |
+| `我无法提供具体数字，但可以从三个角度看。` | comma → the refusal path is cut off |
+| `我无法提供实时数据，但可以按公开资料估算。` | same |
+| `我不能写死端口，得从配置读。` | `写` is followed by `死`, not a sentence end |
+| `抱歉，我无法写得更长。` | `(?!得)` guard |
+| `This is beyond the current scope of the project.` | only `beyond my …` / `beyond the scope` counts |
+| `这个函数我不写注释，直接用默认参数。` | `这个` requires a refusal verb, not a bare `不写` |
 
 ## Limitations
 

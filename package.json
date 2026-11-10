@@ -1,6 +1,6 @@
 {
   "name": "dsh-policy",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "In-stream refusal detection and auto-retry for DeepSeek Harness: peek at the opening chunks, drop refused attempts and re-issue silently, so streaming output stays intact.",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "locale"
   ],
   "scripts": {
-    "test": "node test-retry.mjs"
+    "test": "node test-retry.mjs && node refusal-corpus.mjs"
   },
   "keywords": [
     "dsh-plugin",
