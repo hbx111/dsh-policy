@@ -24,8 +24,8 @@ proxy:   full response buffered  →  judge at the end    →  no streaming at a
 - **Reasoning-aware**: `reasoning-delta` blocks don't count as "output started". A model may think for thousands of characters before refusing — that case is still caught.
 - **Tool-call aware**: if the first block is a tool call, it's not a refusal; no retry.
 - **Upstream filter aware**: `content_filter` / `guardrail_intervened` / `risk control` terminations are treated as terminal. Retrying those just gets cut again and burns tokens, so the plugin stops and annotates the failure instead.
-- **Bilingual refusal patterns**: matches `Sorry, I can't…`, `抱歉，我不能提供…`, `我无法写这类…`, and Chinese *post-posed* negation such as `继母与继子这类家庭亲属关系的性内容我不写`.
-- **Tuned against real DeepSeek-V4.1 output**: 20 probe prompts were run against `deepseek-v4.1-flash` (with a policy block attached) to capture refusals that survive prompt-level persuasion. V4.1 refuses in very short, concrete sentences — `这个我不能写。` / `我不会给你方法。` / `我不能提供甲基苯丙胺的合成步骤…` — which generic refusal lists miss because they expect a demonstrative (`这类` / `这个`) after the verb.
+- **Bilingual refusal patterns**: matches `Sorry, I can't…`, `抱歉，我不能提供…`, `我无法写这类…`, and Chinese *post-posed* negation such as ``.
+- **Tuned against real DeepSeek-V4.1 output**: 20 probe prompts were run against `deepseek-v4.1-flash` (with a policy block attached) to capture refusals that survive prompt-level persuasion. V4.1 refuses in very short, concrete sentences — `这个我不能写。` / `我不会给你方法。` / `我不能提供xxx的合成步骤…` — which generic refusal lists miss because they expect a demonstrative (`这类` / `这个`) after the verb.
 - **Guarded against false positives**: technical phrasing like `这个函数我不写注释` or `这个类的构造器不能写 const` does not trigger a retry.
 - **Zero dependencies**: Node built-ins only.
 
